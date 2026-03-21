@@ -432,3 +432,54 @@ export PATH=/tmp:$PATH
 ![1774104714783](image/Report/1774104714783.png)
 
 ---
+
+## 4. Archetype
+
+### Task 1: Which TCP port is hosting a database server?
+
+- Link tham khảo: <https://www.mssqltips.com/sqlservertip/2495/identify-sql-server-tcp-ip-port-being-used/>
+
+> 1433
+
+### Task 2
+
+---
+
+## 5. Markup
+
+### Task 1: What version of Apache is running on the target's port 80?
+
+- Dùng nmap scan bằng lệnh `nmap -Pn -sT -sV -p 80 10.129.95.192`:
+![1774108978951](image/Report/1774108978951.png)
+
+> 2.4.41
+
+### Task 2: What username:password combination logs in successfully?
+
+- Sau một vòng kiểm tra các mục trong `inspect` thì không thấy gì đặc biệt
+- Xem gợi ý thì tác giả có gợi ý cặp username:password này là phổ biến:
+![1774110380894](image/Report/1774110380894.png)
+- Có ý tưởng dùng burp suite brute force những cặp phổ biến được đề cập trong rockyou
+- Cụ thể:
+  - username dùng `SecLists\Usernames\top-usernames-shortlist.txt`
+  - password dùng `SecLists\Passwords\Common-Credentials\2025-199_most_used_passwords.txt`
+  - Chọn kiểu tấn công `Cluster bomb` để thử mọi tổ hợp
+![1774110812552](image/Report/1774110812552.png)
+- Đã tìm được cặp thỏa mãn là `admin:pasword`
+![1774111029523](image/Report/1774111029523.png)
+
+> admin:password
+
+### Task 3: What is the word at the top of the page that accepts user input?
+
+- Giao diện web sau khi đăng nhập bằng tài khoản tìm được ở task 2:
+![1774111248663](image/Report/1774111248663.png)
+- Đi dò thử các mục thì thấy tab `Oder` cho người dùng nhập vào:
+![1774111309690](image/Report/1774111309690.png)
+
+> order
+
+### Task 4: What XML version is used on the target?
+
+- Lần lượt kiểm tra nguồn trang của các mục nhưng không tìm thấy ghi chú version
+-
