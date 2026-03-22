@@ -465,7 +465,7 @@ export PATH=/tmp:$PATH
   - password dùng `SecLists\Passwords\Common-Credentials\2025-199_most_used_passwords.txt`
   - Chọn kiểu tấn công `Cluster bomb` để thử mọi tổ hợp
 ![1774110812552](image/Report/1774110812552.png)
-- Đã tìm được cặp thỏa mãn là `admin:pasword`
+- Đã tìm được cặp thỏa mãn là `admin:password`
 ![1774111029523](image/Report/1774111029523.png)
 
 > admin:password
