@@ -1,8 +1,4 @@
-# Write up full Tier 2 Stating point
-
----
-
-![1774375236236](image/Report/1774375236236.png)
+# Write up Full Tier 2 Starting Point
 
 ---
 
